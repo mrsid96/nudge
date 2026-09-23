@@ -1,68 +1,92 @@
 import { addDays, setHours, setMinutes, startOfDay } from 'date-fns'
 import { useCallback } from 'react'
-import { useAuth } from '@/app/providers/AuthProvider'
-import { LabelService } from '@/services/LabelService'
-import { TodoService } from '@/services/TodoService'
-import { parseNaturalLanguage } from '@/parser/naturalLanguageParser'
+import { useToast } from '@/app/providers/ToastProvider'
+import { useTodos } from '@/hooks/useTodos'
+import { clearNotified } from '@/services/ReminderService'
+import type { UpdateTodoInput } from '@/services/TodoService'
 
 export function useTodoActions() {
-  const { user } = useAuth()
+  const { showToast } = useToast()
+  const { engine, refreshLocal } = useTodos()
 
-  const getService = useCallback(() => {
-    if (!user) throw new Error('Not authenticated')
-    return new TodoService(user.uid)
-  }, [user])
-
-  const getLabelService = useCallback(() => {
-    if (!user) throw new Error('Not authenticated')
-    return new LabelService(user.uid)
-  }, [user])
+  const requireEngine = useCallback(() => {
+    if (!engine) throw new Error('Not authenticated')
+    return engine
+  }, [engine])
 
   const createFromCapture = useCallback(
-    async (text: string) => {
-      const service = getService()
-      const parsed = parseNaturalLanguage(text)
-
-      if (parsed.labels?.length) {
-        await getLabelService().ensureLabelsExist(parsed.labels)
-      }
-
-      await service.createFromQuickCapture(text)
+    (text: string) => {
+      requireEngine().createFromCapture(text)
+      refreshLocal()
     },
-    [getService, getLabelService],
+    [requireEngine, refreshLocal],
   )
 
   const complete = useCallback(
-    async (id: string) => {
-      await getService().complete(id)
+    (id: string, title?: string) => {
+      requireEngine().updateTodo(id, { status: 'completed' })
+      refreshLocal()
+      showToast(title ? `Completed "${title}"` : 'Task completed', {
+        label: 'Undo',
+        onClick: () => {
+          requireEngine().updateTodo(id, { status: 'active' })
+          clearNotified(id)
+          refreshLocal()
+        },
+      })
     },
-    [getService],
+    [requireEngine, refreshLocal, showToast],
+  )
+
+  const uncomplete = useCallback(
+    (id: string) => {
+      requireEngine().updateTodo(id, { status: 'active' })
+      clearNotified(id)
+      refreshLocal()
+    },
+    [requireEngine, refreshLocal],
   )
 
   const snooze = useCallback(
-    async (id: string) => {
+    (id: string) => {
       const tomorrow = setMinutes(
         setHours(addDays(startOfDay(new Date()), 1), 9),
         0,
       )
-      await getService().snooze(id, tomorrow)
+      requireEngine().updateTodo(id, {
+        status: 'snoozed',
+        reminderAt: tomorrow,
+        snoozedUntil: tomorrow,
+      })
+      clearNotified(id)
+      refreshLocal()
     },
-    [getService],
+    [requireEngine, refreshLocal],
   )
 
   const archive = useCallback(
-    async (id: string) => {
-      await getService().archive(id)
+    (id: string) => {
+      requireEngine().updateTodo(id, { status: 'archived' })
+      refreshLocal()
     },
-    [getService],
+    [requireEngine, refreshLocal],
   )
 
   const deleteTodo = useCallback(
-    async (id: string) => {
-      await getService().delete(id)
+    (id: string) => {
+      requireEngine().deleteTodo(id)
+      refreshLocal()
     },
-    [getService],
+    [requireEngine, refreshLocal],
   )
 
-  return { createFromCapture, complete, snooze, archive, deleteTodo }
+  const updateTodo = useCallback(
+    (id: string, patch: UpdateTodoInput) => {
+      requireEngine().updateTodo(id, patch)
+      refreshLocal()
+    },
+    [requireEngine, refreshLocal],
+  )
+
+  return { createFromCapture, complete, uncomplete, snooze, archive, deleteTodo, updateTodo }
 }

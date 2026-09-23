@@ -4,33 +4,22 @@ import { Input } from '@/components/ui/Input'
 import { cn } from '@/utils/cn'
 
 interface QuickCaptureProps {
-  onSubmit: (text: string) => Promise<void>
+  onSubmit: (text: string) => void
   className?: string
   autoFocus?: boolean
 }
 
 export function QuickCapture({ onSubmit, className, autoFocus }: QuickCaptureProps) {
   const [text, setText] = useState('')
-  const [submitting, setSubmitting] = useState(false)
-  const [error, setError] = useState<string | null>(null)
   const inputRef = useRef<HTMLInputElement>(null)
 
-  async function handleSubmit() {
+  function handleSubmit() {
     const trimmed = text.trim()
-    if (!trimmed || submitting) return
+    if (!trimmed) return
 
-    setSubmitting(true)
-    setError(null)
-
-    try {
-      await onSubmit(trimmed)
-      setText('')
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Unable to save task')
-    } finally {
-      setSubmitting(false)
-      inputRef.current?.focus()
-    }
+    setText('')
+    onSubmit(trimmed)
+    inputRef.current?.focus()
   }
 
   return (
@@ -50,17 +39,8 @@ export function QuickCapture({ onSubmit, className, autoFocus }: QuickCapturePro
           placeholder="What do you need to remember?"
           className="pl-12 py-3.5 text-base"
           autoFocus={autoFocus}
-          disabled={submitting}
         />
       </div>
-      {error && (
-        <p className="text-sm text-danger">
-          {error}. Your task is still preserved locally.{' '}
-          <button onClick={handleSubmit} className="underline">
-            Retry
-          </button>
-        </p>
-      )}
     </div>
   )
 }

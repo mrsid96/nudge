@@ -1,9 +1,16 @@
+import { useEffect } from 'react'
 import { useAuth } from '@/app/providers/AuthProvider'
 import { NotificationPrompt } from '@/components/NotificationPrompt/NotificationPrompt'
 import { getBrowserTimezone } from '@/utils/dates'
 
 export function SettingsPage() {
   const { user } = useAuth()
+
+  useEffect(() => {
+    if (window.location.hash === '#notifications') {
+      document.getElementById('notifications')?.scrollIntoView({ behavior: 'smooth' })
+    }
+  }, [])
 
   return (
     <div className="mx-auto max-w-2xl px-4 py-6 md:px-6">
@@ -26,10 +33,14 @@ export function SettingsPage() {
         )}
       </section>
 
-      <section className="mb-8">
+      <section id="notifications" className="mb-8 scroll-mt-6">
         <h2 className="mb-3 text-sm font-semibold uppercase tracking-wider text-text-muted">
           Notifications
         </h2>
+        <p className="mb-3 text-sm text-text-muted">
+          Enable browser notifications to get reminders for follow-ups and tasks.
+          Reminders also fire while the app is open.
+        </p>
         <NotificationPrompt />
       </section>
 

@@ -35,6 +35,14 @@ export const processReminders = onSchedule('every 1 minutes', async () => {
 
     for (const todoDoc of todosSnapshot.docs) {
       const todo = todoDoc.data()
+
+      // Skip if already notified for this reminder
+      const reminderNotifiedAt = todo.reminderNotifiedAt as Timestamp | undefined
+      const reminderAt = todo.reminderAt as Timestamp | undefined
+      if (reminderNotifiedAt && reminderAt && reminderNotifiedAt.toMillis() >= reminderAt.toMillis()) {
+        continue
+      }
+
       const title = todo.title as string
       const type = todo.type as string
 
@@ -55,9 +63,16 @@ export const processReminders = onSchedule('every 1 minutes', async () => {
           },
         })
 
-        if (todo.status === 'snoozed') {
-          await todoDoc.ref.update({ status: 'active', updatedAt: Timestamp.now() })
+        const updates: Record<string, unknown> = {
+          reminderNotifiedAt: Timestamp.now(),
+          updatedAt: Timestamp.now(),
         }
+
+        if (todo.status === 'snoozed') {
+          updates.status = 'active'
+        }
+
+        await todoDoc.ref.update(updates)
       } catch (error) {
         console.error(`Failed to send reminder for todo ${todoDoc.id}:`, error)
       }

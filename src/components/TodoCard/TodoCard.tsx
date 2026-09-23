@@ -4,6 +4,7 @@ import {
   Check,
   Clock,
   MoreHorizontal,
+  RotateCcw,
   Trash2,
 } from 'lucide-react'
 import { useState } from 'react'
@@ -30,7 +31,7 @@ const PRIORITY_COLORS: Record<string, string> = {
 
 interface TodoCardProps {
   todo: Todo
-  onComplete: (id: string) => void
+  onComplete: (id: string, title: string) => void
   onSnooze: (id: string) => void
   onArchive: (id: string) => void
   onDelete: (id: string) => void
@@ -61,12 +62,21 @@ export function TodoCard({
         <button
           onClick={(e) => {
             e.stopPropagation()
-            onComplete(todo.id)
+            onComplete(todo.id, todo.title)
           }}
-          className="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full border border-border text-text-muted transition-colors hover:border-success hover:text-success"
-          aria-label="Complete task"
+          className={cn(
+            'mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full border border-border text-text-muted transition-colors',
+            todo.status === 'completed'
+              ? 'hover:border-primary hover:text-primary'
+              : 'hover:border-success hover:text-success',
+          )}
+          aria-label={todo.status === 'completed' ? 'Mark incomplete' : 'Complete task'}
         >
-          <Check className="h-3 w-3" />
+          {todo.status === 'completed' ? (
+            <RotateCcw className="h-3 w-3" />
+          ) : (
+            <Check className="h-3 w-3" />
+          )}
         </button>
 
         <div className="min-w-0 flex-1">

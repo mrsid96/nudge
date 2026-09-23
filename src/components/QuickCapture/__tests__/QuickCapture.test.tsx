@@ -5,7 +5,7 @@ import { QuickCapture } from '../QuickCapture'
 
 describe('QuickCapture', () => {
   it('submits on Enter', async () => {
-    const onSubmit = vi.fn().mockResolvedValue(undefined)
+    const onSubmit = vi.fn()
     const user = userEvent.setup()
 
     render(<QuickCapture onSubmit={onSubmit} />)

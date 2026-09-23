@@ -6,32 +6,47 @@ service cloud.firestore {
       return request.auth != null && request.auth.uid == userId;
     }
 
+    // User profile document: /users/{userId}
     match /users/{userId} {
+      allow read: if isOwner(userId);
+      allow create: if isOwner(userId);
+      allow update: if isOwner(userId);
+      allow delete: if false;
+    }
+
+    match /users/{userId}/todos/{todoId} {
+      allow read, delete: if isOwner(userId);
+      allow create: if isOwner(userId)
+        && request.resource.data.userId == userId;
+      allow update: if isOwner(userId)
+        && resource.data.userId == userId
+        && request.resource.data.userId == userId;
+
+      match /comments/{commentId} {
+        allow read, delete: if isOwner(userId);
+        allow create: if isOwner(userId)
+          && request.resource.data.userId == userId;
+        allow update: if isOwner(userId)
+          && resource.data.userId == userId
+          && request.resource.data.userId == userId;
+      }
+    }
+
+    match /users/{userId}/labels/{labelId} {
       allow read, write: if isOwner(userId);
+    }
 
-      match /todos/{todoId} {
-        allow read, delete: if isOwner(userId);
-        allow create: if isOwner(userId)
-          && request.resource.data.userId == userId;
-        allow update: if isOwner(userId)
-          && request.resource.data.userId == userId;
-      }
+    match /users/{userId}/devices/{deviceId} {
+      allow read, delete: if isOwner(userId);
+      allow create: if isOwner(userId)
+        && request.resource.data.userId == userId;
+      allow update: if isOwner(userId)
+        && resource.data.userId == userId
+        && request.resource.data.userId == userId;
+    }
 
-      match /labels/{labelId} {
-        allow read, write: if isOwner(userId);
-      }
-
-      match /devices/{deviceId} {
-        allow read, delete: if isOwner(userId);
-        allow create: if isOwner(userId)
-          && request.resource.data.userId == userId;
-        allow update: if isOwner(userId)
-          && request.resource.data.userId == userId;
-      }
-
-      match /settings/{docId} {
-        allow read, write: if isOwner(userId);
-      }
+    match /users/{userId}/settings/{docId} {
+      allow read, write: if isOwner(userId);
     }
   }
 }

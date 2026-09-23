@@ -37,4 +37,12 @@ describe('todoFilters', () => {
     const sorted = sortTodos(todos)
     expect(sorted[0].priority).toBe('urgent')
   })
+
+  it('handles null createdAt without crashing', () => {
+    const todos = [
+      makeTodo({ id: '1', createdAt: null as unknown as ReturnType<typeof Timestamp.now> }),
+      makeTodo({ id: '2' }),
+    ]
+    expect(() => sortTodos(todos)).not.toThrow()
+  })
 })

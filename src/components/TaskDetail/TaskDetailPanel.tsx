@@ -5,9 +5,12 @@ import { Button } from '@/components/ui/Button'
 import { Input } from '@/components/ui/Input'
 import { LabelChip } from '@/components/LabelChip/LabelChip'
 import { ReminderPicker } from '@/components/ReminderPicker/ReminderPicker'
-import { TodoService } from '@/services/TodoService'
+import { CommentTrail } from '@/components/CommentTrail/CommentTrail'
+import { useTodos } from '@/hooks/useTodos'
+import { useTodoActions } from '@/hooks/useTodoActions'
 import type { Todo, TodoPriority, TodoType } from '@/types'
 import { formatReminderDate, timestampToDate } from '@/utils/dates'
+import { clearNotified } from '@/services/ReminderService'
 
 interface TaskDetailPanelProps {
   taskId: string
@@ -19,36 +22,39 @@ const PRIORITIES: TodoPriority[] = ['none', 'low', 'medium', 'high', 'urgent']
 
 export function TaskDetailPanel({ taskId, onClose }: TaskDetailPanelProps) {
   const { user } = useAuth()
-  const [todo, setTodo] = useState<Todo | null>(null)
+  const { todos, loading } = useTodos()
+  const { updateTodo, complete } = useTodoActions()
+  const [draft, setDraft] = useState<Todo | null>(null)
   const [showSnooze, setShowSnooze] = useState(false)
-  const [loading, setLoading] = useState(true)
+
+  const todo = todos.find((t) => t.id === taskId) ?? draft
 
   useEffect(() => {
-    if (!user) return
-    const service = new TodoService(user.uid)
-    service.getById(taskId).then((t) => {
-      setTodo(t)
-      setLoading(false)
-    })
-  }, [user, taskId])
+    const match = todos.find((t) => t.id === taskId)
+    if (match) setDraft(match)
+  }, [todos, taskId])
 
   if (!user) return null
 
-  const service = new TodoService(user.uid)
-
-  async function handleUpdate(field: string, value: unknown) {
+  function handleUpdate(field: string, value: unknown) {
     if (!todo) return
-    await service.update(todo.id, { [field]: value })
-    setTodo({ ...todo, [field]: value } as Todo)
+    updateTodo(todo.id, { [field]: value } as Parameters<typeof updateTodo>[1])
+    setDraft({ ...todo, [field]: value } as Todo)
   }
 
-  async function handleComplete() {
-    await service.complete(taskId)
+  function handleComplete() {
+    if (!todo) return
+    complete(taskId, todo.title)
     onClose()
   }
 
-  async function handleSnooze(date: Date) {
-    await service.snooze(taskId, date)
+  function handleSnooze(date: Date) {
+    updateTodo(taskId, {
+      status: 'snoozed',
+      reminderAt: date,
+      snoozedUntil: date,
+    })
+    clearNotified(taskId)
     setShowSnooze(false)
     onClose()
   }
@@ -93,7 +99,7 @@ export function TaskDetailPanel({ taskId, onClose }: TaskDetailPanelProps) {
             <label className="mb-1 block text-xs text-text-muted">Title</label>
             <Input
               value={todo.title}
-              onChange={(e) => setTodo({ ...todo, title: e.target.value })}
+              onChange={(e) => setDraft({ ...todo, title: e.target.value })}
               onBlur={() => handleUpdate('title', todo.title)}
             />
           </div>
@@ -115,7 +121,7 @@ export function TaskDetailPanel({ taskId, onClose }: TaskDetailPanelProps) {
             <label className="mb-1 block text-xs text-text-muted">Person</label>
             <Input
               value={todo.person ?? ''}
-              onChange={(e) => setTodo({ ...todo, person: e.target.value })}
+              onChange={(e) => setDraft({ ...todo, person: e.target.value })}
               onBlur={() => handleUpdate('person', todo.person || null)}
               placeholder="Name"
             />
@@ -156,12 +162,14 @@ export function TaskDetailPanel({ taskId, onClose }: TaskDetailPanelProps) {
             <label className="mb-1 block text-xs text-text-muted">Description</label>
             <textarea
               value={todo.description ?? ''}
-              onChange={(e) => setTodo({ ...todo, description: e.target.value })}
+              onChange={(e) => setDraft({ ...todo, description: e.target.value })}
               onBlur={() => handleUpdate('description', todo.description || null)}
               className="w-full rounded-lg border border-border bg-elevated px-4 py-2.5 text-sm min-h-[80px] resize-y"
               placeholder="Add notes..."
             />
           </div>
+
+          <CommentTrail todoId={todo.id} />
         </div>
 
         <div className="mt-6 flex gap-2">

@@ -1,21 +1,11 @@
-import {
-  initializeFirestore,
-  persistentLocalCache,
-  persistentMultipleTabManager,
-  type Firestore,
-} from 'firebase/firestore'
+import { getFirestore, type Firestore } from 'firebase/firestore'
 import { getFirebaseApp } from './config'
 
 let db: Firestore | undefined
 
-/** Initialize Firestore once with persistent cache (replaces deprecated enableIndexedDbPersistence). */
 export function ensureFirestore(): Firestore {
   if (!db) {
-    db = initializeFirestore(getFirebaseApp(), {
-      localCache: persistentLocalCache({
-        tabManager: persistentMultipleTabManager(),
-      }),
-    })
+    db = getFirestore(getFirebaseApp())
   }
   return db
 }

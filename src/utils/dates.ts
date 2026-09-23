@@ -9,8 +9,14 @@ import {
 } from 'date-fns'
 import type { Timestamp } from 'firebase/firestore'
 
-export function timestampToDate(ts: Timestamp | undefined): Date | undefined {
-  return ts ? ts.toDate() : undefined
+export function timestampToDate(ts: Timestamp | null | undefined): Date | undefined {
+  if (!ts || typeof ts.toDate !== 'function') return undefined
+  return ts.toDate()
+}
+
+export function timestampToMillis(ts: Timestamp | null | undefined): number {
+  if (!ts || typeof ts.toMillis !== 'function') return 0
+  return ts.toMillis()
 }
 
 export function getBrowserTimezone(): string {

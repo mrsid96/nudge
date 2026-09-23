@@ -19,6 +19,7 @@ export interface Todo {
   person?: string
   dueAt?: Timestamp
   reminderAt?: Timestamp
+  reminderNotifiedAt?: Timestamp
   completedAt?: Timestamp
   snoozedUntil?: Timestamp
   createdAt: Timestamp
@@ -33,6 +34,14 @@ export interface Todo {
     interval: number
     endAt?: Timestamp
   }
+}
+
+export interface TodoComment {
+  id: string
+  todoId: string
+  userId: string
+  text: string
+  createdAt: Timestamp
 }
 
 export interface Label {

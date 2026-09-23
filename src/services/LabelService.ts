@@ -3,6 +3,7 @@ import {
   collection,
   deleteDoc,
   doc,
+  getDocs,
   onSnapshot,
   orderBy,
   query,
@@ -35,6 +36,11 @@ export class LabelService {
     )
   }
 
+  async list(): Promise<Label[]> {
+    const snapshot = await getDocs(query(this.collectionRef, orderBy('name')))
+    return snapshot.docs.map((d) => ({ id: d.id, ...d.data() }) as Label)
+  }
+
   async create(name: string, color?: string): Promise<string> {
     const docRef = await addDoc(this.collectionRef, {
       name: normalizeLabelName(name),
@@ -55,19 +61,20 @@ export class LabelService {
   }
 
   async ensureLabelsExist(labelNames: string[]): Promise<void> {
-    const existing = await new Promise<Label[]>((resolve) => {
-      const unsub = this.subscribe((labels) => {
-        unsub()
-        resolve(labels)
-      })
-    })
+    if (labelNames.length === 0) return
 
-    const existingNames = new Set(existing.map((l) => l.name))
-    for (const name of labelNames) {
-      const normalized = normalizeLabelName(name)
-      if (!existingNames.has(normalized)) {
-        await this.create(normalized)
+    try {
+      const existing = await this.list()
+      const existingNames = new Set(existing.map((l) => l.name))
+
+      for (const name of labelNames) {
+        const normalized = normalizeLabelName(name)
+        if (!existingNames.has(normalized)) {
+          await this.create(normalized)
+        }
       }
+    } catch (error) {
+      console.warn('Failed to ensure labels exist:', error)
     }
   }
 }

@@ -3,6 +3,8 @@ import { Outlet, useNavigate, useSearchParams } from 'react-router-dom'
 import { Header } from './Header'
 import { Sidebar } from './Sidebar'
 import { MobileNav } from './MobileNav'
+import { NotificationProvider } from '@/app/providers/NotificationProvider'
+import { TodosProvider } from '@/hooks/useTodos'
 import { useKeyboardShortcuts } from '@/hooks/useKeyboardShortcuts'
 import { TaskDetailPanel } from '@/components/TaskDetail/TaskDetailPanel'
 
@@ -35,28 +37,32 @@ export function AppLayout() {
   }
 
   return (
-    <div className="flex min-h-dvh flex-col">
-      <Header
-        searchQuery={searchQuery}
-        onSearchChange={handleSearchChange}
-        searchInputRef={searchInputRef}
-      />
-      <div className="flex flex-1 overflow-hidden">
-        <Sidebar />
-        <main className="flex-1 overflow-y-auto pb-20 md:pb-0">
-          <Outlet />
-        </main>
-        {selectedTaskId && (
-          <TaskDetailPanel
-            taskId={selectedTaskId}
-            onClose={() => {
-              searchParams.delete('task')
-              setSearchParams(searchParams)
-            }}
-          />
-        )}
+    <TodosProvider>
+      <NotificationProvider>
+      <div className="flex min-h-dvh flex-col">
+        <Header
+          searchQuery={searchQuery}
+          onSearchChange={handleSearchChange}
+          searchInputRef={searchInputRef}
+        />
+        <div className="flex flex-1 overflow-hidden">
+          <Sidebar />
+          <main className="flex-1 overflow-y-auto pb-20 md:pb-0">
+            <Outlet />
+          </main>
+          {selectedTaskId && (
+            <TaskDetailPanel
+              taskId={selectedTaskId}
+              onClose={() => {
+                searchParams.delete('task')
+                setSearchParams(searchParams)
+              }}
+            />
+          )}
+        </div>
+        <MobileNav />
       </div>
-      <MobileNav />
-    </div>
+      </NotificationProvider>
+    </TodosProvider>
   )
 }

@@ -1,5 +1,5 @@
 import type { Todo } from '@/types'
-import { isDueToday, isOverdue, timestampToDate } from '@/utils/dates'
+import { isDueToday, isOverdue, timestampToDate, timestampToMillis } from '@/utils/dates'
 import { isToday, isTomorrow, startOfDay, isAfter } from 'date-fns'
 
 const PRIORITY_ORDER: Record<string, number> = {
@@ -17,8 +17,17 @@ export function getAttentionTodos(todos: Todo[]): Todo[] {
     const due = timestampToDate(todo.dueAt)
     if (reminder && (isOverdue(reminder) || isDueToday(reminder))) return true
     if (due && (isOverdue(due) || isDueToday(due))) return true
-    if (todo.type === 'follow_up' || todo.type === 'waiting') return true
+    if (todo.priority === 'urgent' || todo.priority === 'high') return true
     return false
+  })
+}
+
+export function getDueReminders(todos: Todo[]): Todo[] {
+  const now = new Date()
+  return todos.filter((todo) => {
+    if (todo.status === 'completed' || todo.status === 'archived') return false
+    const reminder = timestampToDate(todo.reminderAt)
+    return reminder && reminder <= now
   })
 }
 
@@ -92,6 +101,6 @@ export function sortTodos(todos: Todo[]): Todo[] {
     if (aDate) return -1
     if (bDate) return 1
 
-    return b.createdAt.toMillis() - a.createdAt.toMillis()
+    return timestampToMillis(b.createdAt) - timestampToMillis(a.createdAt)
   })
 }

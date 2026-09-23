@@ -1,13 +1,14 @@
+import { getAuth } from 'firebase/auth'
 import {
-  addDoc,
   collection,
   deleteDoc,
   doc,
   getDoc,
+  getDocs,
   onSnapshot,
-  orderBy,
   query,
   serverTimestamp,
+  setDoc,
   Timestamp,
   updateDoc,
   where,
@@ -16,6 +17,7 @@ import {
 import { getFirestoreDb } from '@/firebase/firestore'
 import { todosCollectionPath } from '@/firebase/firestore'
 import { parseNaturalLanguage } from '@/parser/naturalLanguageParser'
+import { LabelService } from '@/services/LabelService'
 import type { Todo, TodoPriority, TodoStatus, TodoType } from '@/types'
 import { buildSearchText } from '@/utils/searchText'
 
@@ -63,11 +65,9 @@ export class TodoService {
   }
 
   subscribeActive(callback: (todos: Todo[]) => void, onError?: (error: Error) => void): Unsubscribe {
-    const q = query(
-      this.collectionRef,
-      where('status', 'in', ['active', 'snoozed']),
-      orderBy('createdAt', 'desc'),
-    )
+    // No orderBy — avoids composite index requirement and null createdAt on pending writes.
+    // Sorting is done client-side via sortTodos().
+    const q = query(this.collectionRef, where('status', 'in', ['active', 'snoozed']))
 
     return onSnapshot(
       q,
@@ -80,11 +80,7 @@ export class TodoService {
   }
 
   subscribeCompleted(callback: (todos: Todo[]) => void, onError?: (error: Error) => void): Unsubscribe {
-    const q = query(
-      this.collectionRef,
-      where('status', '==', 'completed'),
-      orderBy('completedAt', 'desc'),
-    )
+    const q = query(this.collectionRef, where('status', '==', 'completed'))
 
     return onSnapshot(
       q,
@@ -96,22 +92,22 @@ export class TodoService {
     )
   }
 
-  async createFromQuickCapture(input: string): Promise<string> {
-    const parsed = parseNaturalLanguage(input)
-    return this.create({
-      title: parsed.title || input,
-      type: parsed.type,
-      priority: parsed.priority,
-      labels: parsed.labels,
-      person: parsed.person,
-      reminderAt: parsed.reminderAt,
-      dueAt: parsed.dueAt,
-      source: 'quick_capture',
-    })
+  async fetchAll(): Promise<Todo[]> {
+    await this.ensureAuthReady()
+    const snapshot = await getDocs(this.collectionRef)
+    return snapshot.docs.map((d) => docToTodo(d.id, d.data()))
   }
 
   async create(input: CreateTodoInput): Promise<string> {
-    const now = serverTimestamp()
+    const id = crypto.randomUUID()
+    await this.createWithId(id, input)
+    return id
+  }
+
+  async createWithId(todoId: string, input: CreateTodoInput): Promise<void> {
+    await this.ensureAuthReady()
+
+    const now = Timestamp.now()
     const searchText = buildSearchText({
       title: input.title,
       description: input.description,
@@ -121,7 +117,7 @@ export class TodoService {
       type: input.type,
     })
 
-    const docRef = await addDoc(this.collectionRef, {
+    await setDoc(doc(this.collectionRef, todoId), {
       userId: this.userId,
       title: input.title,
       description: input.description ?? null,
@@ -140,8 +136,32 @@ export class TodoService {
       createdAt: now,
       updatedAt: now,
     })
+  }
 
-    return docRef.id
+  private async ensureAuthReady(): Promise<void> {
+    const authUser = getAuth().currentUser
+    if (!authUser) throw new Error('Not authenticated')
+    await authUser.getIdToken()
+  }
+
+  async createFromQuickCapture(input: string): Promise<string> {
+    const parsed = parseNaturalLanguage(input)
+    const id = await this.create({
+      title: parsed.title || input,
+      type: parsed.type,
+      priority: parsed.priority,
+      labels: parsed.labels,
+      person: parsed.person,
+      reminderAt: parsed.reminderAt,
+      dueAt: parsed.dueAt,
+      source: 'quick_capture',
+    })
+
+    if (parsed.labels?.length) {
+      new LabelService(this.userId).ensureLabelsExist(parsed.labels).catch(console.warn)
+    }
+
+    return id
   }
 
   async update(todoId: string, input: UpdateTodoInput): Promise<void> {
@@ -192,9 +212,29 @@ export class TodoService {
   }
 
   async complete(todoId: string): Promise<void> {
-    await this.update(todoId, { status: 'completed' })
     const docRef = doc(getFirestoreDb(), todosCollectionPath(this.userId), todoId)
-    await updateDoc(docRef, { completedAt: serverTimestamp() })
+    await updateDoc(docRef, {
+      status: 'completed',
+      completedAt: serverTimestamp(),
+      updatedAt: serverTimestamp(),
+    })
+  }
+
+  async uncomplete(todoId: string): Promise<void> {
+    const docRef = doc(getFirestoreDb(), todosCollectionPath(this.userId), todoId)
+    await updateDoc(docRef, {
+      status: 'active',
+      completedAt: null,
+      updatedAt: serverTimestamp(),
+    })
+  }
+
+  async markReminderNotified(todoId: string): Promise<void> {
+    const docRef = doc(getFirestoreDb(), todosCollectionPath(this.userId), todoId)
+    await updateDoc(docRef, {
+      reminderNotifiedAt: serverTimestamp(),
+      updatedAt: serverTimestamp(),
+    })
   }
 
   async snooze(todoId: string, until: Date): Promise<void> {

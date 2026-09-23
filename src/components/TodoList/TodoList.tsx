@@ -6,7 +6,7 @@ interface TodoListProps {
   todos: Todo[]
   loading?: boolean
   emptyMessage?: string
-  onComplete: (id: string) => void
+  onComplete: (id: string, title: string) => void
   onSnooze: (id: string) => void
   onArchive: (id: string) => void
   onDelete: (id: string) => void

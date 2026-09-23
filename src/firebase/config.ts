@@ -1,6 +1,6 @@
 import { initializeApp, type FirebaseApp } from 'firebase/app'
 
-const firebaseConfig = {
+export const firebasePublicConfig = {
   apiKey: import.meta.env.VITE_FIREBASE_API_KEY,
   authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN,
   projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID,
@@ -11,10 +11,10 @@ const firebaseConfig = {
 
 export function isFirebaseConfigured(): boolean {
   return Boolean(
-    firebaseConfig.apiKey &&
-      firebaseConfig.authDomain &&
-      firebaseConfig.projectId &&
-      firebaseConfig.appId,
+    firebasePublicConfig.apiKey &&
+      firebasePublicConfig.authDomain &&
+      firebasePublicConfig.projectId &&
+      firebasePublicConfig.appId,
   )
 }
 
@@ -25,7 +25,7 @@ export function getFirebaseApp(): FirebaseApp {
     throw new Error('Firebase is not configured. Set VITE_FIREBASE_* environment variables.')
   }
   if (!app) {
-    app = initializeApp(firebaseConfig)
+    app = initializeApp(firebasePublicConfig)
   }
   return app
 }

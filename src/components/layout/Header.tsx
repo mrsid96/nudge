@@ -1,6 +1,7 @@
 import { Bell, LogOut, Settings } from 'lucide-react'
 import { Link } from 'react-router-dom'
 import { useAuth } from '@/app/providers/AuthProvider'
+import { useDueReminderCount } from '@/app/providers/NotificationProvider'
 import { SearchBar } from '@/components/SearchBar/SearchBar'
 
 interface HeaderProps {
@@ -11,6 +12,7 @@ interface HeaderProps {
 
 export function Header({ searchQuery, onSearchChange, searchInputRef }: HeaderProps) {
   const { user } = useAuth()
+  const dueCount = useDueReminderCount()
 
   return (
     <header className="flex items-center gap-4 border-b border-border bg-surface px-4 py-3 md:px-6">
@@ -33,12 +35,18 @@ export function Header({ searchQuery, onSearchChange, searchInputRef }: HeaderPr
         >
           <Settings className="h-5 w-5" />
         </Link>
-        <button
-          className="rounded-lg p-2 text-text-muted hover:bg-elevated hover:text-text"
+        <Link
+          to="/settings#notifications"
+          className="relative rounded-lg p-2 text-text-muted hover:bg-elevated hover:text-text"
           aria-label="Notifications"
         >
           <Bell className="h-5 w-5" />
-        </button>
+          {dueCount > 0 && (
+            <span className="absolute -right-0.5 -top-0.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-danger px-1 text-[10px] font-bold text-white">
+              {dueCount > 9 ? '9+' : dueCount}
+            </span>
+          )}
+        </Link>
         {user && (
           <div className="flex items-center gap-2">
             {user.photoURL && (

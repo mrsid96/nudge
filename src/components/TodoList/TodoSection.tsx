@@ -7,7 +7,7 @@ interface TodoSectionProps {
   todos: Todo[]
   loading?: boolean
   emptyMessage?: string
-  onComplete: (id: string) => void
+  onComplete: (id: string, title: string) => void
   onSnooze: (id: string) => void
   onArchive: (id: string) => void
   onDelete: (id: string) => void
@@ -30,14 +30,16 @@ export function TodoSection({
 
   return (
     <section className="mb-8">
-      <h2 className="mb-3 flex items-center gap-2 text-sm font-semibold uppercase tracking-wider text-text-muted">
-        {title}
-        {count !== undefined && count > 0 && (
-          <span className="rounded-full bg-elevated px-2 py-0.5 text-xs font-normal">
-            {count}
-          </span>
-        )}
-      </h2>
+      {title && (
+        <h2 className="mb-3 flex items-center gap-2 text-sm font-semibold uppercase tracking-wider text-text-muted">
+          {title}
+          {count !== undefined && count > 0 && (
+            <span className="rounded-full bg-elevated px-2 py-0.5 text-xs font-normal">
+              {count}
+            </span>
+          )}
+        </h2>
+      )}
       <TodoList
         todos={todos}
         loading={loading}

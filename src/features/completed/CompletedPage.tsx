@@ -1,27 +1,19 @@
-import { useEffect, useState } from 'react'
+import { useMemo } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { TodoSection } from '@/components/TodoList/TodoSection'
-import { useAuth } from '@/app/providers/AuthProvider'
-import { TodoService } from '@/services/TodoService'
+import { useTodos } from '@/hooks/useTodos'
 import { useTodoActions } from '@/hooks/useTodoActions'
-import type { Todo } from '@/types'
+import { sortTodos } from '@/services/todoFilters'
 
 export function CompletedPage() {
-  const { user } = useAuth()
-  const [todos, setTodos] = useState<Todo[]>([])
-  const [loading, setLoading] = useState(true)
-  const { complete, snooze, archive, deleteTodo } = useTodoActions()
+  const { todos, loading } = useTodos()
+  const { uncomplete, snooze, archive, deleteTodo } = useTodoActions()
   const [, setSearchParams] = useSearchParams()
 
-  useEffect(() => {
-    if (!user) return
-    const service = new TodoService(user.uid)
-    const unsub = service.subscribeCompleted((data) => {
-      setTodos(data)
-      setLoading(false)
-    })
-    return unsub
-  }, [user])
+  const completed = useMemo(
+    () => sortTodos(todos.filter((t) => t.status === 'completed')),
+    [todos],
+  )
 
   function selectTask(id: string) {
     setSearchParams({ task: id })
@@ -32,10 +24,10 @@ export function CompletedPage() {
       <h1 className="mb-6 text-xl font-semibold">Completed</h1>
       <TodoSection
         title=""
-        todos={todos}
+        todos={completed}
         loading={loading}
         emptyMessage="No completed tasks"
-        onComplete={complete}
+        onComplete={(id) => uncomplete(id)}
         onSnooze={snooze}
         onArchive={archive}
         onDelete={deleteTodo}
