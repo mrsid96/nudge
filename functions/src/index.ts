@@ -14,13 +14,24 @@ export const processReminders = onSchedule('every 1 minutes', async () => {
   const usersSnapshot = await db.collection('users').listDocuments()
 
   for (const userRef of usersSnapshot) {
-    const todosSnapshot = await userRef
-      .collection('todos')
-      .where('status', 'in', ['active', 'snoozed'])
-      .where('reminderAt', '<=', now)
-      .get()
+    const [reminderSnapshot, dueSnapshot] = await Promise.all([
+      userRef
+        .collection('todos')
+        .where('status', 'in', ['active', 'snoozed'])
+        .where('reminderAt', '<=', now)
+        .get(),
+      userRef
+        .collection('todos')
+        .where('status', 'in', ['active', 'snoozed'])
+        .where('dueAt', '<=', now)
+        .get(),
+    ])
 
-    if (todosSnapshot.empty) continue
+    const todoDocs = new Map<string, FirebaseFirestore.QueryDocumentSnapshot>()
+    for (const doc of reminderSnapshot.docs) todoDocs.set(doc.id, doc)
+    for (const doc of dueSnapshot.docs) todoDocs.set(doc.id, doc)
+
+    if (todoDocs.size === 0) continue
 
     const devicesSnapshot = await userRef
       .collection('devices')
@@ -33,13 +44,19 @@ export const processReminders = onSchedule('every 1 minutes', async () => {
 
     if (tokens.length === 0) continue
 
-    for (const todoDoc of todosSnapshot.docs) {
+    for (const todoDoc of todoDocs.values()) {
       const todo = todoDoc.data()
 
-      // Skip if already notified for this reminder
+      const snoozedUntil = todo.snoozedUntil as Timestamp | undefined
+      if (snoozedUntil && snoozedUntil.toMillis() > now.toMillis()) continue
+
+      // Skip if already notified for this reminder/due time
       const reminderNotifiedAt = todo.reminderNotifiedAt as Timestamp | undefined
       const reminderAt = todo.reminderAt as Timestamp | undefined
-      if (reminderNotifiedAt && reminderAt && reminderNotifiedAt.toMillis() >= reminderAt.toMillis()) {
+      const dueAt = todo.dueAt as Timestamp | undefined
+      const fireAt = reminderAt ?? dueAt
+      if (!fireAt || fireAt.toMillis() > now.toMillis()) continue
+      if (reminderNotifiedAt && reminderNotifiedAt.toMillis() >= fireAt.toMillis()) {
         continue
       }
 

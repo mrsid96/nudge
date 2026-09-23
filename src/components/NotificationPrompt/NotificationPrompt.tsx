@@ -2,6 +2,7 @@ import { Bell, Check } from 'lucide-react'
 import { useState } from 'react'
 import { Button } from '@/components/ui/Button'
 import { NotificationService } from '@/services/NotificationService'
+import { sendTestNotification } from '@/services/ReminderService'
 import { useAuth } from '@/app/providers/AuthProvider'
 
 export function NotificationPrompt() {
@@ -16,9 +17,22 @@ export function NotificationPrompt() {
 
   if (permission === 'granted' || status === 'enabled') {
     return (
-      <div className="flex items-center gap-2 text-sm text-success">
-        <Check className="h-4 w-4" />
-        Reminders enabled
+      <div className="rounded-xl border border-border bg-surface p-4">
+        <div className="flex items-center gap-2 text-sm text-success">
+          <Check className="h-4 w-4" />
+          Reminders enabled
+        </div>
+        <p className="mt-2 text-sm text-text-muted">
+          Reminders fire while this tab is open. Push when closed needs Firebase Cloud Messaging.
+        </p>
+        <Button
+          size="sm"
+          variant="secondary"
+          className="mt-3"
+          onClick={() => sendTestNotification()}
+        >
+          Send test notification
+        </Button>
       </div>
     )
   }

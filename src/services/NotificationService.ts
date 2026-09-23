@@ -31,14 +31,13 @@ export class NotificationService {
 
   async requestPermission(): Promise<boolean> {
     if (!('Notification' in window)) return false
+    if (Notification.permission === 'granted') return true
     const permission = await Notification.requestPermission()
     return permission === 'granted'
   }
 
-  async registerDevice(): Promise<boolean> {
-    const granted = await this.requestPermission()
-    if (!granted) return false
-
+  /** Register FCM for push when the tab is closed. Optional — local reminders work without it. */
+  async registerFcmToken(): Promise<boolean> {
     const token = await requestFcmToken()
     if (!token) return false
 
@@ -59,6 +58,19 @@ export class NotificationService {
       },
       { merge: true },
     )
+
+    return true
+  }
+
+  async registerDevice(): Promise<boolean> {
+    const granted = await this.requestPermission()
+    if (!granted) return false
+
+    try {
+      await this.registerFcmToken()
+    } catch (error) {
+      console.warn('FCM registration failed; in-app reminders still work:', error)
+    }
 
     return true
   }

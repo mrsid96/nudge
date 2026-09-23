@@ -163,9 +163,11 @@ export function useTodoActions() {
         if (patch.project !== undefined) localPatch.project = patch.project
         if (patch.dueAt !== undefined) {
           localPatch.dueAt = patch.dueAt ? Timestamp.fromDate(patch.dueAt) : undefined
+          clearNotified(id)
         }
         if (patch.reminderAt !== undefined) {
           localPatch.reminderAt = patch.reminderAt ? Timestamp.fromDate(patch.reminderAt) : undefined
+          clearNotified(id)
         }
         if (patch.snoozedUntil !== undefined) {
           localPatch.snoozedUntil = patch.snoozedUntil

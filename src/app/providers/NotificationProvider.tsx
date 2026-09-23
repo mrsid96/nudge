@@ -20,7 +20,7 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
 
     void (async () => {
       if (Notification.permission === 'granted') {
-        await service.registerDevice().catch(console.error)
+        await service.registerFcmToken().catch(console.error)
       }
     })()
 

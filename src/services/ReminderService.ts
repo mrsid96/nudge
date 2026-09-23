@@ -1,13 +1,18 @@
 import type { Todo } from '@/types'
 import { timestampToDate } from '@/utils/dates'
 
-const CHECK_INTERVAL_MS = 30_000
+const SAFETY_INTERVAL_MS = 60_000
+const DEFAULT_POLL_MS = 60_000
 const notifiedKey = 'nudge_notified_reminders'
 
-function notificationKey(todo: Todo): string {
+function getFireAt(todo: Todo): Date | undefined {
   const reminder = timestampToDate(todo.reminderAt)
   const due = timestampToDate(todo.dueAt)
-  const fireAt = reminder ?? due
+  return reminder ?? due
+}
+
+function notificationKey(todo: Todo): string {
+  const fireAt = getFireAt(todo)
   return `${todo.id}:${fireAt?.getTime() ?? 0}`
 }
 
@@ -32,11 +37,18 @@ export function clearNotified(todoId: string): void {
   sessionStorage.setItem(notifiedKey, JSON.stringify([...next]))
 }
 
-function isDue(todo: Todo): boolean {
+export function shouldNotify(todo: Todo): boolean {
   if (todo.status === 'completed' || todo.status === 'archived') return false
-  const reminder = timestampToDate(todo.reminderAt)
-  const due = timestampToDate(todo.dueAt)
-  const fireAt = reminder ?? due
+
+  const snoozedUntil = timestampToDate(todo.snoozedUntil)
+  if (snoozedUntil && snoozedUntil > new Date()) return false
+
+  return true
+}
+
+function isDue(todo: Todo): boolean {
+  if (!shouldNotify(todo)) return false
+  const fireAt = getFireAt(todo)
   if (!fireAt) return false
   return fireAt <= new Date()
 }
@@ -47,26 +59,47 @@ function getNotificationTitle(todo: Todo): string {
   return 'Task reminder'
 }
 
-export function showBrowserNotification(todo: Todo): void {
-  if (!('Notification' in window) || Notification.permission !== 'granted') return
+export function showBrowserNotification(todo: Todo): boolean {
+  if (!('Notification' in window) || Notification.permission !== 'granted') return false
 
   const key = notificationKey(todo)
-  if (getNotifiedSet().has(key)) return
+  if (getNotifiedSet().has(key)) return false
 
-  const notification = new Notification(getNotificationTitle(todo), {
-    body: todo.title,
-    icon: '/favicon.svg',
-    tag: key,
-    data: { taskId: todo.id },
-  })
+  try {
+    const notification = new Notification(getNotificationTitle(todo), {
+      body: todo.title,
+      icon: '/favicon.svg',
+      tag: key,
+      data: { taskId: todo.id },
+    })
 
-  notification.onclick = () => {
-    window.focus()
-    window.location.href = `/?task=${todo.id}`
-    notification.close()
+    notification.onclick = () => {
+      window.focus()
+      window.location.href = `/?task=${todo.id}`
+      notification.close()
+    }
+
+    markNotified(key)
+    return true
+  } catch (error) {
+    console.error('Failed to show notification:', error)
+    return false
   }
+}
 
-  markNotified(key)
+export function sendTestNotification(): boolean {
+  if (!('Notification' in window) || Notification.permission !== 'granted') return false
+
+  try {
+    new Notification('Nudge test', {
+      body: 'Notifications are working.',
+      icon: '/favicon.svg',
+    })
+    return true
+  } catch (error) {
+    console.error('Failed to show test notification:', error)
+    return false
+  }
 }
 
 export function checkDueReminders(todos: Todo[]): void {
@@ -79,9 +112,54 @@ export function checkDueReminders(todos: Todo[]): void {
   }
 }
 
+/** Milliseconds until the next reminder should be checked. */
+export function getNextReminderCheckDelay(todos: Todo[]): number {
+  const now = Date.now()
+  let nextFuture: number | null = null
+
+  for (const todo of todos) {
+    if (!shouldNotify(todo)) continue
+    const fireAt = getFireAt(todo)
+    if (!fireAt) continue
+
+    const ms = fireAt.getTime()
+    if (ms <= now) {
+      if (!getNotifiedSet().has(notificationKey(todo))) return 0
+      continue
+    }
+
+    if (nextFuture === null || ms < nextFuture) nextFuture = ms
+  }
+
+  if (nextFuture !== null) return nextFuture - now
+  return DEFAULT_POLL_MS
+}
+
 export function startReminderWatcher(getTodos: () => Todo[]): () => void {
-  const tick = () => checkDueReminders(getTodos())
+  let timeoutId: ReturnType<typeof setTimeout> | undefined
+
+  const scheduleNext = () => {
+    if (timeoutId) clearTimeout(timeoutId)
+    const delay = getNextReminderCheckDelay(getTodos())
+    timeoutId = setTimeout(tick, delay === 0 ? 0 : Math.max(1_000, delay))
+  }
+
+  const tick = () => {
+    checkDueReminders(getTodos())
+    scheduleNext()
+  }
+
+  const onVisible = () => {
+    if (document.visibilityState === 'visible') tick()
+  }
+
   tick()
-  const interval = setInterval(tick, CHECK_INTERVAL_MS)
-  return () => clearInterval(interval)
+  const safety = setInterval(tick, SAFETY_INTERVAL_MS)
+  document.addEventListener('visibilitychange', onVisible)
+
+  return () => {
+    if (timeoutId) clearTimeout(timeoutId)
+    clearInterval(safety)
+    document.removeEventListener('visibilitychange', onVisible)
+  }
 }
