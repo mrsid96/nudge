@@ -44,11 +44,13 @@ npm run dev
 | `npm run test` | Run unit tests |
 | `npm run test:e2e` | Run Playwright E2E tests |
 
-## Deployment (Cloudflare Pages)
+## Deployment (Cloudflare Workers / Pages)
 
 - Build command: `npm run build`
+- Deploy command: `npx wrangler deploy`
 - Output directory: `dist`
-- Add `VITE_FIREBASE_*` environment variables in Cloudflare Pages settings.
+- SPA routing is handled by `wrangler.jsonc` (`not_found_handling: "single-page-application"`). Do **not** add a `_redirects` file — it conflicts with Wrangler and causes deploy error `100324`.
+- Add `VITE_FIREBASE_*` environment variables in your Cloudflare project settings.
 
 ## Architecture
 
