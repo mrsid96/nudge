@@ -4,6 +4,13 @@ import { timestampToDate } from '@/utils/dates'
 const CHECK_INTERVAL_MS = 30_000
 const notifiedKey = 'nudge_notified_reminders'
 
+function notificationKey(todo: Todo): string {
+  const reminder = timestampToDate(todo.reminderAt)
+  const due = timestampToDate(todo.dueAt)
+  const fireAt = reminder ?? due
+  return `${todo.id}:${fireAt?.getTime() ?? 0}`
+}
+
 function getNotifiedSet(): Set<string> {
   try {
     const raw = sessionStorage.getItem(notifiedKey)
@@ -13,23 +20,25 @@ function getNotifiedSet(): Set<string> {
   }
 }
 
-function markNotified(todoId: string): void {
+function markNotified(key: string): void {
   const set = getNotifiedSet()
-  set.add(todoId)
+  set.add(key)
   sessionStorage.setItem(notifiedKey, JSON.stringify([...set]))
 }
 
 export function clearNotified(todoId: string): void {
   const set = getNotifiedSet()
-  set.delete(todoId)
-  sessionStorage.setItem(notifiedKey, JSON.stringify([...set]))
+  const next = new Set([...set].filter((k) => !k.startsWith(`${todoId}:`)))
+  sessionStorage.setItem(notifiedKey, JSON.stringify([...next]))
 }
 
 function isDue(todo: Todo): boolean {
   if (todo.status === 'completed' || todo.status === 'archived') return false
   const reminder = timestampToDate(todo.reminderAt)
-  if (!reminder) return false
-  return reminder <= new Date()
+  const due = timestampToDate(todo.dueAt)
+  const fireAt = reminder ?? due
+  if (!fireAt) return false
+  return fireAt <= new Date()
 }
 
 function getNotificationTitle(todo: Todo): string {
@@ -40,12 +49,14 @@ function getNotificationTitle(todo: Todo): string {
 
 export function showBrowserNotification(todo: Todo): void {
   if (!('Notification' in window) || Notification.permission !== 'granted') return
-  if (getNotifiedSet().has(todo.id)) return
+
+  const key = notificationKey(todo)
+  if (getNotifiedSet().has(key)) return
 
   const notification = new Notification(getNotificationTitle(todo), {
     body: todo.title,
     icon: '/favicon.svg',
-    tag: todo.id,
+    tag: key,
     data: { taskId: todo.id },
   })
 
@@ -55,7 +66,7 @@ export function showBrowserNotification(todo: Todo): void {
     notification.close()
   }
 
-  markNotified(todo.id)
+  markNotified(key)
 }
 
 export function checkDueReminders(todos: Todo[]): void {

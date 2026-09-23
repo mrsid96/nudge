@@ -1,11 +1,10 @@
 import { useEffect, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useAuth } from '@/app/providers/AuthProvider'
-import { useTodos } from '@/hooks/useTodos'
+import { useTodos } from '@/app/providers/TodosProvider'
 import { NotificationService } from '@/services/NotificationService'
-import { startReminderWatcher } from '@/services/ReminderService'
+import { checkDueReminders, startReminderWatcher } from '@/services/ReminderService'
 import { subscribeToForegroundMessages } from '@/firebase/messaging'
-import { getDueReminders } from '@/services/todoFilters'
 
 export function NotificationProvider({ children }: { children: React.ReactNode }) {
   const { user } = useAuth()
@@ -19,14 +18,16 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
 
     const service = new NotificationService(user.uid)
 
-    if (service.getPermissionStatus() === 'granted') {
-      service.registerDevice().catch(console.error)
-    }
+    void (async () => {
+      if (Notification.permission === 'granted') {
+        await service.registerDevice().catch(console.error)
+      }
+    })()
 
     const stopWatcher = startReminderWatcher(() => todosRef.current)
 
     let unsubForeground: (() => void) | undefined
-    subscribeToForegroundMessages((payload) => {
+    void subscribeToForegroundMessages((payload) => {
       const taskId = payload.data?.taskId
       const title = payload.notification?.title ?? 'Nudge'
       const body = payload.notification?.body ?? ''
@@ -52,10 +53,12 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
     }
   }, [user, navigate])
 
-  return children
-}
+  // Check immediately when todos change (e.g. reminder time passes while viewing)
+  useEffect(() => {
+    if (Notification.permission === 'granted') {
+      checkDueReminders(todos)
+    }
+  }, [todos])
 
-export function useDueReminderCount(): number {
-  const { todos } = useTodos()
-  return getDueReminders(todos).length
+  return children
 }

@@ -1,8 +1,9 @@
-import { Bell, LogOut, Settings } from 'lucide-react'
+import { LogOut, Settings } from 'lucide-react'
 import { Link } from 'react-router-dom'
 import { useAuth } from '@/app/providers/AuthProvider'
-import { useDueReminderCount } from '@/app/providers/NotificationProvider'
+import { clearSessionData } from '@/lib/session'
 import { SearchBar } from '@/components/SearchBar/SearchBar'
+import { SyncStatusIndicator } from '@/components/SyncStatus/SyncStatusIndicator'
 
 interface HeaderProps {
   searchQuery: string
@@ -12,7 +13,6 @@ interface HeaderProps {
 
 export function Header({ searchQuery, onSearchChange, searchInputRef }: HeaderProps) {
   const { user } = useAuth()
-  const dueCount = useDueReminderCount()
 
   return (
     <header className="flex items-center gap-4 border-b border-border bg-surface px-4 py-3 md:px-6">
@@ -27,25 +27,14 @@ export function Header({ searchQuery, onSearchChange, searchInputRef }: HeaderPr
         inputRef={searchInputRef}
       />
 
-      <div className="ml-auto flex items-center gap-2">
+      <div className="ml-auto flex items-center gap-3">
+        <SyncStatusIndicator />
         <Link
           to="/settings"
           className="rounded-lg p-2 text-text-muted hover:bg-elevated hover:text-text"
           aria-label="Settings"
         >
           <Settings className="h-5 w-5" />
-        </Link>
-        <Link
-          to="/settings#notifications"
-          className="relative rounded-lg p-2 text-text-muted hover:bg-elevated hover:text-text"
-          aria-label="Notifications"
-        >
-          <Bell className="h-5 w-5" />
-          {dueCount > 0 && (
-            <span className="absolute -right-0.5 -top-0.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-danger px-1 text-[10px] font-bold text-white">
-              {dueCount > 9 ? '9+' : dueCount}
-            </span>
-          )}
         </Link>
         {user && (
           <div className="flex items-center gap-2">
@@ -57,7 +46,11 @@ export function Header({ searchQuery, onSearchChange, searchInputRef }: HeaderPr
               />
             )}
             <button
-              onClick={() => import('@/firebase/auth').then((m) => m.signOutUser())}
+              onClick={async () => {
+                const { signOutUser } = await import('@/firebase/auth')
+                if (user) await clearSessionData(user.uid)
+                await signOutUser()
+              }}
               className="rounded-lg p-2 text-text-muted hover:bg-elevated hover:text-text"
               aria-label="Sign out"
             >

@@ -12,6 +12,7 @@ interface TodoSectionProps {
   onArchive: (id: string) => void
   onDelete: (id: string) => void
   onSelect: (id: string) => void
+  showWhenEmpty?: boolean
 }
 
 export function TodoSection({
@@ -25,8 +26,9 @@ export function TodoSection({
   onArchive,
   onDelete,
   onSelect,
+  showWhenEmpty = false,
 }: TodoSectionProps) {
-  if (!loading && todos.length === 0) return null
+  if (!loading && todos.length === 0 && !showWhenEmpty) return null
 
   return (
     <section className="mb-8">

@@ -1,8 +1,10 @@
 import { useEffect, useState } from 'react'
 import { WifiOff } from 'lucide-react'
+import { useTodos } from '@/hooks/useTodos'
 
 export function OfflineBanner() {
   const [offline, setOffline] = useState(!navigator.onLine)
+  const { pendingCount } = useTodos()
 
   useEffect(() => {
     function handleOnline() { setOffline(false) }
@@ -16,12 +18,20 @@ export function OfflineBanner() {
     }
   }, [])
 
-  if (!offline) return null
+  if (!offline && pendingCount === 0) return null
+
+  if (!offline && pendingCount > 0) {
+    return (
+      <div className="flex items-center justify-center gap-2 bg-elevated px-4 py-1.5 text-xs text-text-muted">
+        {pendingCount} change{pendingCount === 1 ? '' : 's'} waiting to sync
+      </div>
+    )
+  }
 
   return (
     <div className="flex items-center justify-center gap-2 bg-warning/10 px-4 py-2 text-sm text-warning">
       <WifiOff className="h-4 w-4" />
-      You&apos;re offline. Changes will sync when you&apos;re back online.
+      Offline · {pendingCount > 0 ? `${pendingCount} changes waiting to sync` : 'Changes will sync when back online'}
     </div>
   )
 }

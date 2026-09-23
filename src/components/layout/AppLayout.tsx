@@ -4,7 +4,9 @@ import { Header } from './Header'
 import { Sidebar } from './Sidebar'
 import { MobileNav } from './MobileNav'
 import { NotificationProvider } from '@/app/providers/NotificationProvider'
-import { TodosProvider } from '@/hooks/useTodos'
+import { OfflineBanner } from '@/components/OfflineBanner'
+import { NotificationEnableBanner } from '@/components/NotificationPrompt/NotificationEnableBanner'
+import { TodosProvider } from '@/app/providers/TodosProvider'
 import { useKeyboardShortcuts } from '@/hooks/useKeyboardShortcuts'
 import { TaskDetailPanel } from '@/components/TaskDetail/TaskDetailPanel'
 
@@ -40,6 +42,8 @@ export function AppLayout() {
     <TodosProvider>
       <NotificationProvider>
       <div className="flex min-h-dvh flex-col">
+        <NotificationEnableBanner />
+        <OfflineBanner />
         <Header
           searchQuery={searchQuery}
           onSearchChange={handleSearchChange}

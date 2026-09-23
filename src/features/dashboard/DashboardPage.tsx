@@ -1,21 +1,26 @@
+import { useMemo } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { QuickCapture } from '@/components/QuickCapture/QuickCapture'
 import { CaptureDemo } from '@/components/QuickCapture/CaptureDemo'
 import { TodoSection } from '@/components/TodoList/TodoSection'
 import { useAuth } from '@/app/providers/AuthProvider'
-import { useTodos } from '@/hooks/useTodos'
+import { useTodos } from '@/app/providers/TodosProvider'
 import { useTodoActions } from '@/hooks/useTodoActions'
 import { getAttentionTodos, sortTodos } from '@/services/todoFilters'
 import { getGreeting } from '@/utils/dates'
 
 export function DashboardPage() {
   const { user } = useAuth()
-  const { todos, loading } = useTodos()
+  const { todos, loading, ready } = useTodos()
   const { createFromCapture, complete, snooze, archive, deleteTodo } = useTodoActions()
   const [searchParams, setSearchParams] = useSearchParams()
   const autoFocus = searchParams.get('capture') === '1'
 
-  const attention = getAttentionTodos(sortTodos(todos))
+  const attention = useMemo(() => {
+    const active = todos.filter((t) => t.status === 'active' || t.status === 'snoozed')
+    return getAttentionTodos(sortTodos(active))
+  }, [todos])
+
   const firstName = user?.displayName?.split(' ')[0] ?? 'there'
 
   function selectTask(id: string) {
@@ -32,6 +37,7 @@ export function DashboardPage() {
         onSubmit={createFromCapture}
         className="mb-8"
         autoFocus={autoFocus}
+        disabled={!ready}
       />
 
       <TodoSection
@@ -39,6 +45,7 @@ export function DashboardPage() {
         count={attention.length}
         todos={attention}
         loading={loading}
+        showWhenEmpty
         emptyMessage="Nothing needs your attention right now"
         onComplete={complete}
         onSnooze={snooze}

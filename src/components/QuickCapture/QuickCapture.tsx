@@ -4,22 +4,33 @@ import { Input } from '@/components/ui/Input'
 import { cn } from '@/utils/cn'
 
 interface QuickCaptureProps {
-  onSubmit: (text: string) => void
+  onSubmit: (text: string) => Promise<void>
   className?: string
   autoFocus?: boolean
+  disabled?: boolean
 }
 
-export function QuickCapture({ onSubmit, className, autoFocus }: QuickCaptureProps) {
+export function QuickCapture({ onSubmit, className, autoFocus, disabled }: QuickCaptureProps) {
   const [text, setText] = useState('')
+  const [saving, setSaving] = useState(false)
   const inputRef = useRef<HTMLInputElement>(null)
 
-  function handleSubmit() {
+  async function handleSubmit() {
     const trimmed = text.trim()
-    if (!trimmed) return
+    if (!trimmed || saving || disabled) return
 
+    setSaving(true)
     setText('')
-    onSubmit(trimmed)
-    inputRef.current?.focus()
+
+    try {
+      await onSubmit(trimmed)
+      inputRef.current?.focus()
+    } catch {
+      setText(trimmed)
+      inputRef.current?.focus()
+    } finally {
+      setSaving(false)
+    }
   }
 
   return (
@@ -33,12 +44,13 @@ export function QuickCapture({ onSubmit, className, autoFocus }: QuickCapturePro
           onKeyDown={(e) => {
             if (e.key === 'Enter') {
               e.preventDefault()
-              handleSubmit()
+              void handleSubmit()
             }
           }}
-          placeholder="What do you need to remember?"
+          placeholder={disabled ? 'Loading…' : 'What do you need to remember?'}
           className="pl-12 py-3.5 text-base"
           autoFocus={autoFocus}
+          disabled={disabled || saving}
         />
       </div>
     </div>

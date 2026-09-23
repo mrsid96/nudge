@@ -5,7 +5,7 @@ import { QuickCapture } from '../QuickCapture'
 
 describe('QuickCapture', () => {
   it('submits on Enter', async () => {
-    const onSubmit = vi.fn()
+    const onSubmit = vi.fn().mockResolvedValue(undefined)
     const user = userEvent.setup()
 
     render(<QuickCapture onSubmit={onSubmit} />)
@@ -15,5 +15,10 @@ describe('QuickCapture', () => {
     await user.keyboard('{Enter}')
 
     expect(onSubmit).toHaveBeenCalledWith('Follow up with Rahul tomorrow')
+  })
+
+  it('is disabled when loading', () => {
+    render(<QuickCapture onSubmit={vi.fn()} disabled />)
+    expect(screen.getByPlaceholderText('Loading…')).toBeDisabled()
   })
 })

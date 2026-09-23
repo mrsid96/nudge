@@ -38,11 +38,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         setLoading(false)
 
         if (authUser) {
-          import('@/firebase/profile').then(({ ensureUserProfile }) => {
-            ensureUserProfile(authUser).catch((error) => {
+          import('@/firebase/firestore')
+            .then(({ ensureFirestore }) => ensureFirestore())
+            .then(() => import('@/firebase/profile'))
+            .then(({ ensureUserProfile }) => ensureUserProfile(authUser))
+            .catch((error) => {
               console.error('Failed to ensure user profile:', error)
             })
-          })
         }
       }).then((unsub) => {
         unsubscribe = unsub

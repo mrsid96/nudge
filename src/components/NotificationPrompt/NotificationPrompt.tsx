@@ -49,6 +49,12 @@ export function NotificationPrompt() {
     }
 
     const registered = await service.registerDevice()
+    if (registered && Notification.permission === 'granted') {
+      new Notification('Reminders enabled', {
+        body: "You'll be notified when tasks are due.",
+        icon: '/favicon.svg',
+      })
+    }
     setStatus(registered ? 'enabled' : 'denied')
     setLoading(false)
   }

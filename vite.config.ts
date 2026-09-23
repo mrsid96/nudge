@@ -39,6 +39,9 @@ export default defineConfig(({ mode }) => {
       VitePWA({
         registerType: 'autoUpdate',
         injectRegister: false,
+        devOptions: {
+          enabled: false,
+        },
         includeAssets: ['favicon.svg'],
         manifest: {
           name: 'Nudge',
@@ -69,32 +72,10 @@ export default defineConfig(({ mode }) => {
       alias: {
         '@': path.resolve(rootDir, './src'),
       },
-      dedupe: ['react', 'react-dom'],
+      dedupe: ['react', 'react-dom', 'firebase/app', 'firebase/firestore', 'firebase/auth'],
     },
-    build: {
-      rollupOptions: {
-        output: {
-          manualChunks(id) {
-            if (!id.includes('node_modules')) return
-
-            if (id.includes('firebase/messaging') || id.includes('@firebase/messaging')) {
-              return 'firebase-messaging'
-            }
-            if (id.includes('firebase/firestore') || id.includes('@firebase/firestore')) {
-              return 'firebase-firestore'
-            }
-            if (id.includes('firebase/auth') || id.includes('@firebase/auth')) {
-              return 'firebase-auth'
-            }
-            if (id.includes('firebase/') || id.includes('@firebase/')) {
-              return 'firebase-core'
-            }
-            if (id.includes('date-fns')) {
-              return 'date-fns'
-            }
-          },
-        },
-      },
+    optimizeDeps: {
+      include: ['react', 'react-dom', 'react-router-dom', 'dexie'],
     },
   }
 })

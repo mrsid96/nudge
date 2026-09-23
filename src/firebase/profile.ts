@@ -1,10 +1,11 @@
 import type { User } from 'firebase/auth'
 import { doc, getDoc, setDoc, Timestamp } from 'firebase/firestore'
-import { getFirestoreDb, userDocPath } from './firestore'
+import { ensureFirestore } from './firestore'
 import { getBrowserTimezone } from '@/utils/dates'
 
 export async function ensureUserProfile(user: User): Promise<void> {
-  const userRef = doc(getFirestoreDb(), userDocPath(user.uid))
+  const db = ensureFirestore()
+  const userRef = doc(db, 'users', user.uid)
   const snapshot = await getDoc(userRef)
 
   if (!snapshot.exists()) {

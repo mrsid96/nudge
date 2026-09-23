@@ -8,15 +8,16 @@ import {
   isSameDay,
 } from 'date-fns'
 import type { Timestamp } from 'firebase/firestore'
+import { stampToMillis, timestampToDate as parseTimestamp } from '@/db/serialization'
 
-export function timestampToDate(ts: Timestamp | null | undefined): Date | undefined {
-  if (!ts || typeof ts.toDate !== 'function') return undefined
-  return ts.toDate()
+type StoredTimestamp = Timestamp | { seconds: number; nanoseconds: number } | null | undefined
+
+export function timestampToDate(ts: StoredTimestamp): Date | undefined {
+  return parseTimestamp(ts)
 }
 
-export function timestampToMillis(ts: Timestamp | null | undefined): number {
-  if (!ts || typeof ts.toMillis !== 'function') return 0
-  return ts.toMillis()
+export function timestampToMillis(ts: StoredTimestamp): number {
+  return stampToMillis(ts)
 }
 
 export function getBrowserTimezone(): string {

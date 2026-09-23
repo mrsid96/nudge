@@ -1,39 +1,36 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import { useAuth } from '@/app/providers/AuthProvider'
-import { LabelService } from '@/services/LabelService'
+import { useTodos } from '@/hooks/useTodos'
 import type { Label } from '@/types'
 
 interface UseLabelsOptions {
-  /** Defer subscription until idle to avoid competing with todo listener on startup */
   enabled?: boolean
 }
 
 export function useLabels({ enabled = true }: UseLabelsOptions = {}) {
   const { user } = useAuth()
+  const { labelRepository } = useTodos()
   const [labels, setLabels] = useState<Label[]>([])
   const [loading, setLoading] = useState(false)
 
-  const service = useMemo(
-    () => (user ? new LabelService(user.uid) : null),
-    [user],
-  )
+  const refresh = useCallback(async () => {
+    if (!labelRepository) {
+      setLabels([])
+      return
+    }
+    setLabels(await labelRepository.getAll())
+  }, [labelRepository])
 
   useEffect(() => {
-    if (!service || !enabled) {
-      if (!enabled) return
+    if (!user || !enabled || !labelRepository) {
       setLabels([])
       setLoading(false)
       return
     }
 
     setLoading(true)
-    const unsubscribe = service.subscribe((data) => {
-      setLabels(data)
-      setLoading(false)
-    })
+    void refresh().finally(() => setLoading(false))
+  }, [user, enabled, labelRepository, refresh])
 
-    return unsubscribe
-  }, [service, enabled])
-
-  return { labels, loading, service }
+  return { labels, loading, refresh }
 }
